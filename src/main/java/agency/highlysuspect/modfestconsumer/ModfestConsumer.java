@@ -48,8 +48,8 @@ public class ModfestConsumer {
 		ModrinthVersionSet submissionsIncludingTransitiveDeps = submissionVersions.copy();
 		Map<String, ModrinthVersion> projectIdToLatestVersion = new HashMap<>();
 		
-		//Smunnel hard-deps on Sodium without declaring it on modrinth lol
-		submissionsIncludingTransitiveDeps.put(versionCache.getVersionOrDownload(modrinthApi, "Yp8wLY1P"));
+		//Resolving dep bugs i found while bisecting
+		submissionsIncludingTransitiveDeps.put(versionCache.getVersionOrDownload(modrinthApi, "Yp8wLY1P")); //Sodium
 		
 		int lastSize;
 		do {
