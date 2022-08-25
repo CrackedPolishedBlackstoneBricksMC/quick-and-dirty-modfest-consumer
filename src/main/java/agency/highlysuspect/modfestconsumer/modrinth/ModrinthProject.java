@@ -1,10 +1,10 @@
 package agency.highlysuspect.modfestconsumer.modrinth;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
 public class ModrinthProject {
 	public String slug, title;
-	@SerializedName("versions") public List<String> versionIds;
+	@JsonProperty("versions") public List<String> versionIds;
 }

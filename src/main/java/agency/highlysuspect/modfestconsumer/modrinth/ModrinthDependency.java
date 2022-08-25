@@ -1,11 +1,11 @@
 package agency.highlysuspect.modfestconsumer.modrinth;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ModrinthDependency {
-	@SerializedName("version_id") public String versionId;
-	@SerializedName("project_id") public String projectId;
-	@SerializedName("dependency_type") public Type dependencyType;
+	@JsonProperty("version_id") public String versionId;
+	@JsonProperty("project_id") public String projectId;
+	@JsonProperty("dependency_type") public Type dependencyType;
 	
 	@Override
 	public String toString() {
@@ -13,10 +13,10 @@ public class ModrinthDependency {
 	}
 	
 	public enum Type {
-		@SerializedName("required") Required,
-		@SerializedName("optional") Optional,
-		@SerializedName("incompatible") Incompatible,
-		@SerializedName("embedded") Embedded,
+		@JsonProperty("required") Required,
+		@JsonProperty("optional") Optional,
+		@JsonProperty("incompatible") Incompatible,
+		@JsonProperty("embedded") Embedded,
 		;
 	}
 }

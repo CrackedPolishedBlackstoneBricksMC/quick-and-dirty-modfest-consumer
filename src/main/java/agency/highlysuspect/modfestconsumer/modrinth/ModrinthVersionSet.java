@@ -1,6 +1,7 @@
 package agency.highlysuspect.modfestconsumer.modrinth;
 
 import agency.highlysuspect.modfestconsumer.ModfestConsumer;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSet;
 
 import javax.annotation.Nullable;
@@ -14,7 +15,8 @@ import java.util.Objects;
 import java.util.Set;
 
 public class ModrinthVersionSet {
-	protected final Map<String, ModrinthVersion> versionIdToVersionInfo = new HashMap<>();
+	@JsonProperty("versionIdToVersionInfo")
+	public Map<String, ModrinthVersion> versionIdToVersionInfo = new HashMap<>();
 	
 	public @Nullable ModrinthVersion getVersionOrNull(String versionId) {
 		return versionIdToVersionInfo.get(versionId);
@@ -78,7 +80,7 @@ public class ModrinthVersionSet {
 			if(!Files.exists(path)) return new ModrinthVersionSet.Cache(path);
 			else try {
 				//Kinda crusty yea
-				ModrinthVersionSet list = ModfestConsumer.GSON.fromJson(Files.newBufferedReader(path), ModrinthVersionSet.class);
+				ModrinthVersionSet list = ModfestConsumer.JSON.readValue(Files.newBufferedReader(path), ModrinthVersionSet.class);
 				ModrinthVersionSet.Cache cache = new ModrinthVersionSet.Cache(path);
 				cache.putAll(list);
 				return cache;
@@ -92,7 +94,7 @@ public class ModrinthVersionSet {
 			if(dirty) {
 				dirty = false;
 				Files.createDirectories(path.getParent());
-				Files.writeString(path, ModfestConsumer.GSON.toJson(this));
+				Files.writeString(path, ModfestConsumer.JSON.writeValueAsString(this));
 			}
 		}
 		

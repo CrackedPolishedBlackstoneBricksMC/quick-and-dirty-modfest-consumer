@@ -1,14 +1,14 @@
 package agency.highlysuspect.modfestconsumer.modrinth;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
 public class ModrinthVersion {
-	@SerializedName("id") public String id;
-	@SerializedName("project_id") public String projectId;
-	@SerializedName("version_number") public String number;
-	@SerializedName("date_published") public String datePublished; //TODO use a real java time datatype (probably Instant?), labrinth says this is an ISO-8601 date
+	@JsonProperty("id") public String id;
+	@JsonProperty("project_id") public String projectId;
+	@JsonProperty("version_number") public String number;
+	@JsonProperty("date_published") public String datePublished; //TODO use a real java time datatype (probably Instant?), labrinth says this is an ISO-8601 date
 	public List<ModrinthDependency> dependencies;
 	public List<ModrinthVersionFile> files;
 	

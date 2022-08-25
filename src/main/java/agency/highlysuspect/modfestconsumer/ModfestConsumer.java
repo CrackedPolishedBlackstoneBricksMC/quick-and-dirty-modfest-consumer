@@ -6,8 +6,9 @@ import agency.highlysuspect.modfestconsumer.modrinth.ModrinthVersion;
 import agency.highlysuspect.modfestconsumer.modrinth.ModrinthVersionSet;
 import agency.highlysuspect.modfestconsumer.modfest.ModfestAPI;
 import agency.highlysuspect.modfestconsumer.modrinth.ModrinthAPI;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.net.http.HttpClient;
 import java.nio.file.Files;
@@ -22,7 +23,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ModfestConsumer {
-	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
+	public static final ObjectMapper JSON = new ObjectMapper()
+		.enable(SerializationFeature.INDENT_OUTPUT)
+		.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	
 	public static void main(String[] args) throws Exception {
 		HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.ALWAYS).build();
@@ -106,6 +109,8 @@ public class ModfestConsumer {
 		} while(submissionsIncludingTransitiveDeps.size() != lastSize);
 		System.out.println("Modpack has " + lastSize + " versions to download");
 		
+		versionCache.save();
+		
 		//Step 4: Download each version
 		Path modsDir = Paths.get("./mods");
 		Files.createDirectories(modsDir);
@@ -124,8 +129,6 @@ public class ModfestConsumer {
 		for(ModrinthVersion ver : submissionsIncludingTransitiveDeps.allVersions()) {
 			modrinthApi.downloadPrimaryFile(modsDir, ver);
 		}
-		
-		versionCache.save();
 	}
 	
 	//Tries to parse the garbage that people write in the version number field into something comparable

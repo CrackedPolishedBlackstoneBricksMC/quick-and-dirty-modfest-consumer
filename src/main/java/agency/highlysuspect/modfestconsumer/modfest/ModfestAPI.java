@@ -2,7 +2,7 @@ package agency.highlysuspect.modfestconsumer.modfest;
 
 import agency.highlysuspect.modfestconsumer.API;
 import agency.highlysuspect.modfestconsumer.ModfestConsumer;
-import com.google.gson.reflect.TypeToken;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -19,6 +19,6 @@ public class ModfestAPI extends API {
 		System.out.println("Downloading Modfest submissions list");
 		
 		String rsp = requestAsString(BASE_URI.resolve("submissions"));
-		return ModfestConsumer.GSON.fromJson(rsp, new TypeToken<List<ModfestPlatformSubmission>>(){}.getType());
+		return ModfestConsumer.JSON.readValue(rsp, new TypeReference<>(){});
 	}
 }

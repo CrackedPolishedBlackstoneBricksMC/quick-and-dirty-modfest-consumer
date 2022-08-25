@@ -2,9 +2,10 @@ package agency.highlysuspect.modfestconsumer.modrinth;
 
 import agency.highlysuspect.modfestconsumer.API;
 import agency.highlysuspect.modfestconsumer.ModfestConsumer;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.util.concurrent.RateLimiter;
-import com.google.gson.JsonArray;
-import com.google.gson.reflect.TypeToken;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -32,7 +33,7 @@ public class ModrinthAPI extends API {
 		try {
 			URI uri = BASE_URI.resolve("version/" + versionId);
 			String rsp = requestAsString(uri);
-			return ModfestConsumer.GSON.fromJson(rsp, ModrinthVersion.class);
+			return ModfestConsumer.JSON.readValue(rsp, ModrinthVersion.class);
 		} catch (Exception e) {
 			e.addSuppressed(new RuntimeException("when requesting version with id " + versionId));
 			throw e;
@@ -46,7 +47,7 @@ public class ModrinthAPI extends API {
 		try {
 			URI uri = BASE_URI.resolve("versions?ids=" + formatAsArray0(versionIds));
 			String rsp = requestAsString(uri);
-			return ModfestConsumer.GSON.fromJson(rsp, new TypeToken<List<ModrinthVersion>>(){}.getType());
+			return ModfestConsumer.JSON.readValue(rsp, new TypeReference<>(){});
 		} catch (Exception e) {
 			e.addSuppressed(new RuntimeException(k));
 			throw e;
@@ -61,7 +62,7 @@ public class ModrinthAPI extends API {
 			URI uri = BASE_URI.resolve("project/" + projectId + "/version?loaders=" + formatAsArray0(loaders) + "&game_versions=" + formatAsArray0(gameVersions));
 			String rsp = requestAsString(uri);
 			
-			List<ModrinthVersion> candidates = ModfestConsumer.GSON.fromJson(rsp, new TypeToken<List<ModrinthVersion>>(){}.getType());
+			List<ModrinthVersion> candidates = ModfestConsumer.JSON.readValue(rsp, new TypeReference<>() {});
 			if(candidates.size() == 0) throw new IllegalStateException("No versions are compatible?");
 			
 			//Sort by date published
@@ -96,7 +97,7 @@ public class ModrinthAPI extends API {
 	}
 	
 	private String formatAsArray(Collection<String> c) {
-		JsonArray arr = new JsonArray();
+		ArrayNode arr = new ArrayNode(JsonNodeFactory.instance);
 		for(String s : c) arr.add(s);
 		return arr.toString();
 	}

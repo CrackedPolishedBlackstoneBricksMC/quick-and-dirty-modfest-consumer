@@ -1,14 +1,14 @@
 package agency.highlysuspect.modfestconsumer.modfest;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
 
 public class ModfestPlatformSubmission {
 	public String slug, name;
-	@SerializedName("id") public String modrinthProjectId;
-	@SerializedName("version_id") public String modrinthVersionId;
+	@JsonProperty("id") public String modrinthProjectId;
+	@JsonProperty("version_id") public String modrinthVersionId;
 	
 	public static String bigConcat(Collection<ModfestPlatformSubmission> subs) {
 		return subs.stream().map(s -> s.name).collect(Collectors.joining(", "));
