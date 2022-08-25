@@ -1,6 +1,5 @@
-package agency.highlysuspect.modfestconsumer.modrinth;
+package agency.highlysuspect.modfestconsumer;
 
-import agency.highlysuspect.modfestconsumer.ModfestConsumer;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableSet;
 
@@ -16,9 +15,10 @@ import java.util.Set;
 
 public class ModrinthVersionSet {
 	@JsonProperty("versionIdToVersionInfo")
-	public Map<String, ModrinthVersion> versionIdToVersionInfo = new HashMap<>();
+	public Map<String, ModrinthAPI.Version> versionIdToVersionInfo = new HashMap<>();
 	
-	public @Nullable ModrinthVersion getVersionOrNull(String versionId) {
+	public @Nullable
+	ModrinthAPI.Version getVersionOrNull(String versionId) {
 		return versionIdToVersionInfo.get(versionId);
 	}
 	
@@ -26,22 +26,22 @@ public class ModrinthVersionSet {
 		return versionIdToVersionInfo.containsKey(versionId);
 	}
 	
-	public ModrinthVersion getExistingVersionForProject(String projectId) {
-		for(ModrinthVersion v : allVersions()) {
-			if(Objects.equals(v.projectId, projectId)) return v;
+	public ModrinthAPI.Version getExistingVersionForProject(String projectId) {
+		for(ModrinthAPI.Version v : allVersions()) {
+			if(Objects.equals(v.projectId(), projectId)) return v;
 		}
 		return null;
 	}
 	
-	public void put(ModrinthVersion ver) {
-		versionIdToVersionInfo.put(ver.id, ver);
+	public void put(ModrinthAPI.Version ver) {
+		versionIdToVersionInfo.put(ver.id(), ver);
 	}
 	
 	public void putAll(ModrinthVersionSet others) {
 		others.allVersions().forEach(this::put);
 	}
 	
-	public void putAll(Collection<ModrinthVersion> others) {
+	public void putAll(Collection<ModrinthAPI.Version> others) {
 		others.forEach(this::put);
 	}
 	
@@ -50,7 +50,7 @@ public class ModrinthVersionSet {
 		return versionIdToVersionInfo.toString();
 	}
 	
-	public Set<ModrinthVersion> allVersions() {
+	public Set<ModrinthAPI.Version> allVersions() {
 		return ImmutableSet.copyOf(versionIdToVersionInfo.values());
 	}
 	
@@ -98,12 +98,13 @@ public class ModrinthVersionSet {
 			}
 		}
 		
-		public @Nullable ModrinthVersion getVersionOrDownload(ModrinthAPI api, String versionId) {
-			ModrinthVersion get = versionIdToVersionInfo.get(versionId);
+		public @Nullable
+		ModrinthAPI.Version getVersionOrDownload(ModrinthAPI api, String versionId) {
+			ModrinthAPI.Version get = versionIdToVersionInfo.get(versionId);
 			if(get != null) return get;
 			
 			try {
-				ModrinthVersion ver = api.requestVersion(versionId);
+				ModrinthAPI.Version ver = api.requestVersion(versionId);
 				dirty = true;
 				put(ver);
 				return ver;
@@ -114,7 +115,7 @@ public class ModrinthVersionSet {
 		
 		public void fetchManyVersions(ModrinthAPI api, Collection<String> versionIds) {
 			try {
-				List<ModrinthVersion> vers = api.requestManyVersions(versionIds);
+				List<ModrinthAPI.Version> vers = api.requestManyVersions(versionIds);
 				dirty = true;
 				putAll(vers);
 			} catch (Exception e) {

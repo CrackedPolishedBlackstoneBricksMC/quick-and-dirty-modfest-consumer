@@ -1,11 +1,5 @@
 package agency.highlysuspect.modfestconsumer;
 
-import agency.highlysuspect.modfestconsumer.modfest.ModfestPlatformSubmission;
-import agency.highlysuspect.modfestconsumer.modrinth.ModrinthDependency;
-import agency.highlysuspect.modfestconsumer.modrinth.ModrinthVersion;
-import agency.highlysuspect.modfestconsumer.modrinth.ModrinthVersionSet;
-import agency.highlysuspect.modfestconsumer.modfest.ModfestAPI;
-import agency.highlysuspect.modfestconsumer.modrinth.ModrinthAPI;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -21,8 +15,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ModfestConsumer {
+	//Using Jackson instead of the possibly more familiar GSON because it can handle records out-of-the-box :)
 	public static final ObjectMapper JSON = new ObjectMapper()
 		.enable(SerializationFeature.INDENT_OUTPUT)
 		.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -37,18 +33,18 @@ public class ModfestConsumer {
 		System.out.println("Loaded " + versionCache.size() + " Modrinth versions from the local cache");
 		
 		//Step 1: Download the submissions from Modfest Platform. This isn't cached.
-		List<ModfestPlatformSubmission> submissions = modfestApi.requestSubmissionList();
-		System.out.println("Modfest has " + submissions.size() + " submissions: " + ModfestPlatformSubmission.bigConcat(submissions));
+		List<ModfestAPI.Submission> submissions = modfestApi.requestSubmissionList();
+		System.out.println("Modfest has " + submissions.size() + " submissions: " + submissions.stream().map(ModfestAPI.Submission::name).collect(Collectors.joining(", ")));
 		
 		//Step 2: Learn about each Modrinth version corresponding to the Modfest submissions.
 		ModrinthVersionSet submissionVersions = new ModrinthVersionSet();
-		submissions.forEach(sub -> submissionVersions.put(versionCache.getVersionOrDownload(modrinthApi, sub.modrinthVersionId)));
+		submissions.forEach(sub -> submissionVersions.put(versionCache.getVersionOrDownload(modrinthApi, sub.modrinthVersionId())));
 		versionCache.save();
 		
 		//Step 3: Learn about all required dependencies, and dependencies's dependencies, etc, until the complete set of transitive dependencies is learned.
 		//Solve the diamond problem by picking the newer version of any mutual dependencies... as they are encountered when iterating. I don't think this is actually sound.
 		ModrinthVersionSet submissionsIncludingTransitiveDeps = submissionVersions.copy();
-		Map<String, ModrinthVersion> projectIdToLatestVersion = new HashMap<>();
+		Map<String, ModrinthAPI.Version> projectIdToLatestVersion = new HashMap<>();
 		
 		//Resolving dep bugs i found while bisecting
 		submissionsIncludingTransitiveDeps.put(versionCache.getVersionOrDownload(modrinthApi, "Yp8wLY1P")); //Sodium
@@ -57,45 +53,45 @@ public class ModfestConsumer {
 		do {
 			lastSize = submissionsIncludingTransitiveDeps.size();
 			
-			for(ModrinthVersion ver : submissionsIncludingTransitiveDeps.allVersions()) {
-				if(ver.dependencies == null) continue;
-				for(ModrinthDependency dep : ver.dependencies) {
-					if(dep.dependencyType != ModrinthDependency.Type.Required) continue;
+			for(ModrinthAPI.Version ver : submissionsIncludingTransitiveDeps.allVersions()) {
+				if(ver.dependencies() == null) continue;
+				for(ModrinthAPI.Dependency dep : ver.dependencies()) {
+					if(dep.dependencyType() != ModrinthAPI.Dependency.Type.Required) continue;
 					
 					String versionId;
-					if(dep.versionId != null) {
-						versionId = dep.versionId;
+					if(dep.versionId() != null) {
+						versionId = dep.versionId();
 					} else {
-						if(dep.projectId == null) {
+						if(dep.projectId() == null) {
 							System.err.println("Skipping dependency with neither project ID nor version ID, weird");
 							continue;
 						}
 						//Modrinth can sometimes have files with deps with no version ID, but a project ID. Take this to mean the latest available version for this project.
 						//THis information cooouuuld be cached but it kind of shouldn't be, what if a dep updates.
-						if(projectIdToLatestVersion.containsKey(dep.projectId)) {
-							versionId = projectIdToLatestVersion.get(dep.projectId).id;
+						if(projectIdToLatestVersion.containsKey(dep.projectId())) {
+							versionId = projectIdToLatestVersion.get(dep.projectId()).id();
 						} else {
-							ModrinthVersion latestVer = modrinthApi.requestLatestVersionForProject(dep.projectId, List.of("quilt", "fabric"), List.of("1.19.2", "1.19.1", "1.19"));
+							ModrinthAPI.Version latestVer = modrinthApi.requestLatestVersionForProject(dep.projectId(), List.of("quilt", "fabric"), List.of("1.19.2", "1.19.1", "1.19"));
 							versionCache.put(latestVer);
-							projectIdToLatestVersion.put(dep.projectId, latestVer);
-							versionId = latestVer.id;
+							projectIdToLatestVersion.put(dep.projectId(), latestVer);
+							versionId = latestVer.id();
 						}
 					}
-					ModrinthVersion newDep = versionCache.getVersionOrDownload(modrinthApi, versionId);
+					ModrinthAPI.Version newDep = versionCache.getVersionOrDownload(modrinthApi, versionId);
 					if(newDep == null) continue;
 					
 					//(Awesome hacks) Ban fabric-language-kotlin and fabric-api
-					if(Set.of("Ha28R6CL", "P7dR8mSH").contains(newDep.projectId)) {
-						System.out.println(ver.id + " declares a dep on fabric-language-kotlin or fabric-api uhhh No sorry");
+					if(Set.of("Ha28R6CL", "P7dR8mSH").contains(newDep.projectId())) {
+						System.out.println(ver.id() + " declares a dep on fabric-language-kotlin or fabric-api uhhh No sorry");
 						continue;
 					}
 					
-					ModrinthVersion existingDep = submissionsIncludingTransitiveDeps.getExistingVersionForProject(newDep.projectId);
-					if(existingDep != null && !Objects.equals(newDep.number, existingDep.number)) {
+					ModrinthAPI.Version existingDep = submissionsIncludingTransitiveDeps.getExistingVersionForProject(newDep.projectId());
+					if(existingDep != null && !Objects.equals(newDep.number(), existingDep.number())) {
 						//The set of deps already includes a version for the given project. They must fight to the death
-						System.err.printf("Resolving conflict between versions new %s (%s) and old %s (%s) for project id %s%n", newDep.id, newDep.number, existingDep.id, existingDep.number, newDep.projectId);
-						long goodParseOld = goodSemVerParserYeah(existingDep.number);
-						long goodParseNew = goodSemVerParserYeah(newDep.number);
+						System.err.printf("Resolving conflict between versions new %s (%s) and old %s (%s) for project id %s%n", newDep.id(), newDep.number(), existingDep.id(), existingDep.number(), newDep.projectId());
+						long goodParseOld = goodSemVerParserYeah(existingDep.number());
+						long goodParseNew = goodSemVerParserYeah(newDep.number());
 						if(goodParseOld > goodParseNew) {
 							System.err.println("old > new");
 							continue;
@@ -126,7 +122,7 @@ public class ModfestConsumer {
 //			}
 //		}
 		
-		for(ModrinthVersion ver : submissionsIncludingTransitiveDeps.allVersions()) {
+		for(ModrinthAPI.Version ver : submissionsIncludingTransitiveDeps.allVersions()) {
 			modrinthApi.downloadPrimaryFile(modsDir, ver);
 		}
 	}

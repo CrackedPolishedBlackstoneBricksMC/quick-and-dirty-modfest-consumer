@@ -1,7 +1,8 @@
-package agency.highlysuspect.modfestconsumer.modrinth;
+package agency.highlysuspect.modfestconsumer;
 
 import agency.highlysuspect.modfestconsumer.API;
 import agency.highlysuspect.modfestconsumer.ModfestConsumer;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -19,6 +20,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 public class ModrinthAPI extends API {
 	public static final URI BASE_URI = URI.create("https://api.modrinth.com/v2/");
@@ -27,20 +29,20 @@ public class ModrinthAPI extends API {
 		super(client, new ModrinthRateLimiter());
 	}
 	
-	public ModrinthVersion requestVersion(String versionId) throws Exception {
+	public Version requestVersion(String versionId) throws Exception {
 		System.out.println("Downloading information about version " + versionId);
 		
 		try {
 			URI uri = BASE_URI.resolve("version/" + versionId);
 			String rsp = requestAsString(uri);
-			return ModfestConsumer.JSON.readValue(rsp, ModrinthVersion.class);
+			return ModfestConsumer.JSON.readValue(rsp, Version.class);
 		} catch (Exception e) {
 			e.addSuppressed(new RuntimeException("when requesting version with id " + versionId));
 			throw e;
 		}
 	}
 	
-	public List<ModrinthVersion> requestManyVersions(Collection<String> versionIds) throws Exception {
+	public List<Version> requestManyVersions(Collection<String> versionIds) throws Exception {
 		String k = "Downloading information about versions " + String.join(", ", versionIds);
 		System.out.println(k);
 		
@@ -54,7 +56,7 @@ public class ModrinthAPI extends API {
 		}
 	}
 	
-	public ModrinthVersion requestLatestVersionForProject(String projectId, Collection<String> loaders, Collection<String> gameVersions) throws Exception {
+	public Version requestLatestVersionForProject(String projectId, Collection<String> loaders, Collection<String> gameVersions) throws Exception {
 		String k = "Downloading information about the latest version for project " + projectId + " for loaders " + formatAsArray(loaders) + " and versions " + gameVersions;
 		System.out.println(k);
 		
@@ -62,11 +64,11 @@ public class ModrinthAPI extends API {
 			URI uri = BASE_URI.resolve("project/" + projectId + "/version?loaders=" + formatAsArray0(loaders) + "&game_versions=" + formatAsArray0(gameVersions));
 			String rsp = requestAsString(uri);
 			
-			List<ModrinthVersion> candidates = ModfestConsumer.JSON.readValue(rsp, new TypeReference<>() {});
+			List<Version> candidates = ModfestConsumer.JSON.readValue(rsp, new TypeReference<>() {});
 			if(candidates.size() == 0) throw new IllegalStateException("No versions are compatible?");
 			
 			//Sort by date published
-			candidates.sort(Comparator.comparing((ModrinthVersion ver) -> Instant.from(DateTimeFormatter.ISO_INSTANT.parse(ver.datePublished))).reversed());
+			candidates.sort(Comparator.comparing((Version ver) -> Instant.from(DateTimeFormatter.ISO_INSTANT.parse(ver.datePublished()))).reversed());
 			return candidates.get(0);
 		} catch (Exception e) {
 			e.addSuppressed(new RuntimeException(k));
@@ -74,13 +76,13 @@ public class ModrinthAPI extends API {
 		}
 	}
 	
-	public void downloadPrimaryFile(Path modsDir, ModrinthVersion version) throws Exception {
-		String k = "Downloading id " + version.id + " v" + version.number;
+	public void downloadPrimaryFile(Path modsDir, Version version) throws Exception {
+		String k = "Downloading id " + version.id() + " v" + version.number();
 		System.out.println(k);
 		
 		try {
-			ModrinthVersionFile file = version.findPrimaryFile();
-			String filename = file.filename;
+			File file = version.findPrimaryFile();
+			String filename = file.filename();
 			if(filename.contains("/..") || filename.contains("../") || filename.contains("/")) throw new IllegalArgumentException("Suss filename: " + filename);
 			
 			Path dest = modsDir.resolve(filename);
@@ -89,7 +91,7 @@ public class ModrinthAPI extends API {
 				return;
 			}
 			
-			request(file.uri, HttpResponse.BodyHandlers.ofFile(dest));
+			request(file.uri(), HttpResponse.BodyHandlers.ofFile(dest));
 		} catch (Exception e) {
 			e.addSuppressed(new RuntimeException(k));
 			throw e;
@@ -125,6 +127,30 @@ public class ModrinthAPI extends API {
 				}
 				limit.setRate(rps);
 			});
+		}
+	}
+	
+	public static record Project(String slug, String title, @JsonProperty("versions") List<String> versionIds) {}
+	public static record File(Map<String, String> hashes, @JsonProperty("url") URI uri, String filename, boolean primary) {}
+	public static record Version(String id, @JsonProperty("project_id") String projectId, @JsonProperty("version_number") String number, @JsonProperty("date_published") String datePublished, List<Dependency> dependencies, List<File> files) {
+		public File findPrimaryFile() {
+			if(files == null || files.isEmpty()) throw new IllegalStateException("No files");
+			
+			for(File file : files) {
+				if(file.primary()) return file;
+			}
+			
+			//"If there isn't a primary, assume the zeroth one" ~ Emmaffle on Discord, your home for critical api docs ;)
+			return files.get(0);
+		}
+	}
+	public static record Dependency(@JsonProperty("version_id") String versionId, @JsonProperty("project_id") String projectId, @JsonProperty("dependency_type") Type dependencyType) {
+		public enum Type {
+			@JsonProperty("required") Required,
+			@JsonProperty("optional") Optional,
+			@JsonProperty("incompatible") Incompatible,
+			@JsonProperty("embedded") Embedded,
+			;
 		}
 	}
 }
