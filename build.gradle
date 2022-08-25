@@ -1,0 +1,30 @@
+plugins {
+	id "application"
+}
+
+group "agency.highlysuspect"
+version "1.0-SNAPSHOT"
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+application {
+	mainClass = "agency.highlysuspect.modfestconsumer.ModfestConsumer"
+}
+
+//Gradle is really good btw
+File runDir = new File("./build/run")
+runDir.mkdirs()
+tasks.run.workingDir = runDir;
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'com.google.code.gson:gson:2.9.1'
+	implementation 'com.google.guava:guava:31.1-jre'
+}
