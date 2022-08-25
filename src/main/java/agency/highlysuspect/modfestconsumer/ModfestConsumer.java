@@ -20,7 +20,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class ModfestConsumer {
 	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
