@@ -6,10 +6,10 @@ import java.net.URI;
 import java.util.Map;
 
 public class ModrinthVersionFile {
-	Map<String, String> hashes;
-	@SerializedName("url") URI uri;
-	String filename;
-	boolean primary;
+	public Map<String, String> hashes;
+	public @SerializedName("url") URI uri;
+	public String filename;
+	public boolean primary;
 	
 	@Override
 	public String toString() {

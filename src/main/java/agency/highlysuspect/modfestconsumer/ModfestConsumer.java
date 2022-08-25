@@ -17,8 +17,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ModfestConsumer {
 	public static final Gson GSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
@@ -45,6 +47,9 @@ public class ModfestConsumer {
 		//Solve the diamond problem by picking the newer version of any mutual dependencies... as they are encountered when iterating. I don't think this is actually sound.
 		ModrinthVersionSet submissionsIncludingTransitiveDeps = submissionVersions.copy();
 		Map<String, ModrinthVersion> projectIdToLatestVersion = new HashMap<>();
+		
+		//Smunnel hard-deps on Sodium without declaring it on modrinth lol
+		submissionsIncludingTransitiveDeps.put(versionCache.getVersionOrDownload(modrinthApi, "Yp8wLY1P"));
 		
 		int lastSize;
 		do {
@@ -77,6 +82,12 @@ public class ModfestConsumer {
 					ModrinthVersion newDep = versionCache.getVersionOrDownload(modrinthApi, versionId);
 					if(newDep == null) continue;
 					
+					//(Awesome hacks) Ban fabric-language-kotlin and fabric-api
+					if(Set.of("Ha28R6CL", "P7dR8mSH").contains(newDep.projectId)) {
+						System.out.println(ver.id + " declares a dep on fabric-language-kotlin or fabric-api uhhh No sorry");
+						continue;
+					}
+					
 					ModrinthVersion existingDep = submissionsIncludingTransitiveDeps.getExistingVersionForProject(newDep.projectId);
 					if(existingDep != null && !Objects.equals(newDep.number, existingDep.number)) {
 						//The set of deps already includes a version for the given project. They must fight to the death
@@ -94,11 +105,23 @@ public class ModfestConsumer {
 				}
 			}
 		} while(submissionsIncludingTransitiveDeps.size() != lastSize);
-		System.out.println("Transitive deps " + lastSize + " versions");
+		System.out.println("Modpack has " + lastSize + " versions to download");
 		
 		//Step 4: Download each version
 		Path modsDir = Paths.get("./mods");
 		Files.createDirectories(modsDir);
+		
+//		Set<String> acceptableFilenames = submissionsIncludingTransitiveDeps.allVersions().stream()
+//			.map(v -> v.findPrimaryFile().filename)
+//			.collect(Collectors.toSet());
+//		for(Path p : Files.walk(modsDir, 1).toList()) {
+//			if(!Files.isRegularFile(p)) continue;
+//			if(!acceptableFilenames.contains(p.getFileName().toString())) {
+//				System.err.println("Deleting " + p + " because it's not part of the modpack");
+//				Files.delete(p);
+//			}
+//		}
+		
 		for(ModrinthVersion ver : submissionsIncludingTransitiveDeps.allVersions()) {
 			modrinthApi.downloadPrimaryFile(modsDir, ver);
 		}
